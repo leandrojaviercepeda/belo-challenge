@@ -25,6 +25,19 @@ async function bootstrap() {
     .setDescription('API REST para manejo de transacciones entre cuentas')
     .setVersion('1.0')
     .addTag('health')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+      'JWT-auth',
+    )
+    .addSecurity('JWT-auth', {
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+    })
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);

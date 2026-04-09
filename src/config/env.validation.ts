@@ -28,6 +28,20 @@ export class EnvironmentVariables {
 
   @IsString()
   DATABASE_NAME: string = 'belo_challenge';
+
+  @IsString()
+  JWT_SECRET: string = 'change-me-in-production';
+
+  @IsString()
+  JWT_EXPIRES_IN: string = '15m';
+
+  @IsString()
+  JWT_REFRESH_EXPIRES_IN: string = '7d';
+
+  // Add these to .env:
+  // JWT_SECRET=your-secret-key
+  // JWT_EXPIRES_IN=15m
+  // JWT_REFRESH_EXPIRES_IN=7d
 }
 
 export function validate(config: Record<string, unknown>) {
