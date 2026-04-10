@@ -2,6 +2,10 @@ import { Controller, Get } from '@nestjs/common';
 import { HealthService } from './health.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
+/**
+ * Controlador de salud de la aplicación.
+ * Proporciona endpoints para verificar el estado del servicio.
+ */
 @ApiTags('health')
 @Controller('health')
 export class HealthController {

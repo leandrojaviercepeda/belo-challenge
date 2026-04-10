@@ -8,11 +8,19 @@ import {
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
+/**
+ * Enum de roles de usuario.
+ * Define los roles disponibles en el sistema.
+ */
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',
 }
 
+/**
+ * Entidad de usuario.
+ * Representa un usuario en el sistema con autenticación y balance.
+ */
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
