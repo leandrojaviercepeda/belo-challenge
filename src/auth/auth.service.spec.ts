@@ -18,8 +18,10 @@ describe('AuthService', () => {
     password: 'hashedpassword',
     createdAt: new Date(),
     updatedAt: new Date(),
+    balance: 0,
     validatePassword: jest.fn().mockResolvedValue(true),
-  } as User;
+    hashPassword: jest.fn(),
+  } as unknown as User;
 
   const mockUsersService = {
     create: jest.fn(),
