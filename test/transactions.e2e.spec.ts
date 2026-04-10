@@ -127,26 +127,26 @@ describe('TransactionsController (e2e)', () => {
     });
   });
 
-  describe('Idempotency', () => {
-    it('should return existing transaction for duplicate idempotencyKey', async () => {
-      const idempotencyKey = crypto.randomUUID();
+  describe('Reference (Idempotency)', () => {
+    it('should return existing transaction for duplicate reference', async () => {
+      const reference = `TXN-TEST-${Date.now()}`;
 
       // First request - creates transaction
       await supertest(httpServer)
         .post('/transactions')
         .set('Authorization', `Bearer ${charlieToken}`)
-        .send({ toUserId: aliceId, amount: 1, idempotencyKey })
+        .send({ toUserId: aliceId, amount: 1, reference })
         .expect(201);
 
-      // Second request with same idempotencyKey - should return existing (still 201 but same id)
+      // Second request with same reference - should return existing (still 201 but same id)
       const res = await supertest(httpServer)
         .post('/transactions')
         .set('Authorization', `Bearer ${charlieToken}`)
-        .send({ toUserId: aliceId, amount: 1, idempotencyKey })
+        .send({ toUserId: aliceId, amount: 1, reference })
         .expect(201);
 
       // Should be the same transaction
-      expect(res.body.idempotencyKey).toBe(idempotencyKey);
+      expect(res.body.reference).toBe(reference);
       expect(res.body.amount).toBe(1);
     });
   });

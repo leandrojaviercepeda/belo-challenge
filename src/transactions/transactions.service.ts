@@ -54,7 +54,7 @@ export class TransactionsService {
    * La verificación de idempotencia está DENTRO de la transacción para evitar duplicados.
    * @param fromUserId - ID del usuario que envía dinero
    * @param dto - Datos de la transacción (toUserId, amount, etc.)
-   * @returns Transacción creada o existente (si idempotencyKey ya existía)
+   * @returns Transacción creada o existente (si reference ya existía)
    * @throws NotFoundException - Si el usuario destinario no existe
    * @throws BadRequestException - Si saldo insuficiente o transferencia a sí mismo
    * @throws HttpException(429) - Si excede threshold de recurrencia
@@ -63,7 +63,8 @@ export class TransactionsService {
     fromUserId: string,
     dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
-    const idempotencyKey = dto.idempotencyKey || crypto.randomUUID();
+    // Usar reference del DTO o generar una única
+    const reference = dto.reference || crypto.randomUUID();
 
     // 1. Check recurrence fuera de la transacción (no necesita Blochqueo)
     this.checkRecurrenceBlock(fromUserId);
@@ -78,7 +79,7 @@ export class TransactionsService {
       const existingTransaction = await queryRunner.manager.findOne(
         Transaction,
         {
-          where: { idempotencyKey },
+          where: { reference },
         },
       );
       if (existingTransaction) {
@@ -129,7 +130,7 @@ export class TransactionsService {
         amount: dto.amount,
         currency: dto.currency || 'USD',
         status: TransactionStatus.COMPLETED,
-        idempotencyKey,
+        reference,
       });
 
       const savedTransaction = await queryRunner.manager.save(transaction);
@@ -256,7 +257,7 @@ export class TransactionsService {
       amount: Number(transaction.amount),
       currency: transaction.currency,
       status: transaction.status,
-      idempotencyKey: transaction.idempotencyKey,
+      reference: transaction.reference,
       createdAt: transaction.createdAt,
     };
   }

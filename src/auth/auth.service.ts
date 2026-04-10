@@ -67,6 +67,7 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
+      balance: user.balance,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

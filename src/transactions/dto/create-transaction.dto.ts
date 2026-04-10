@@ -14,17 +14,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  */
 export class CreateTransactionDto {
   /**
-   * Clave de idempotencia (opcional).
+   * Referencia única de la transacción (opcional).
    * Si no se proporciona, se genera automáticamente.
-   * Usar la misma clave para evitar transacciones duplicadas.
+   * Usar para evitar transacciones duplicadas.
    */
   @ApiPropertyOptional({
-    description: 'Clave de idempotencia (opcional, se genera si no se provee)',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Referencia única (opcional, se genera si no se provee)',
+    example: 'TXN-12345',
   })
-  @IsUUID()
+  @IsString()
   @IsOptional()
-  idempotencyKey?: string;
+  reference?: string;
 
   /**
    * ID del usuario que recibe el dinero.

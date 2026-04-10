@@ -12,8 +12,8 @@ import { TransactionStatus } from './transaction-status.enum';
 
 /**
  * Entidad que representa una transacción monetaria entre dos usuarios.
- * Almacena el estado de la transferencia, monto, y clave de idempotencia.
- * Cada transacción es única y rastreable mediante su idempotencyKey.
+ * Almacena el estado de la transferencia y la clave de referencia única.
+ * Cada transacción es única y rastreable mediante su reference.
  */
 @Entity('transactions')
 export class Transaction {
@@ -64,11 +64,11 @@ export class Transaction {
   status: TransactionStatus;
 
   /**
-   * Clave de idempotencia para evitar transacciones duplicadas.
+   * Referencia única de la transacción para evitar duplicados.
    * Debe ser única por usuario emisor.
    */
-  @Column({ name: 'idempotency_key', unique: true })
-  idempotencyKey: string;
+  @Column({ name: 'reference', unique: true })
+  reference: string;
 
   /**
    * Usuario que envía la transacción.

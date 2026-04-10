@@ -5,6 +5,7 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { AdminModule } from './admin/admin.module';
 import { User } from './users/user.entity';
 import { Transaction } from './transactions/transaction.entity';
 import { validate } from './config/env.validation';
@@ -35,6 +36,7 @@ import { validate } from './config/env.validation';
     UsersModule,
     AuthModule,
     TransactionsModule,
+    AdminModule,
   ],
   controllers: [],
   providers: [],

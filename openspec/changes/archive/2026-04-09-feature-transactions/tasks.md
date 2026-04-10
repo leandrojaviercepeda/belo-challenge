@@ -61,7 +61,13 @@
 ## Phase 7: Verificación Final
 
 - [x] 7.1 Build pasa sin errores
-- [x] 7.2 Unit Tests: 48 passing
-- [x] 7.3 E2E Tests: 21 passing
+- [x] 7.2 Unit Tests: 52 passing
+- [x] 7.3 E2E Tests: 25 passing
+- [x] 7.4 JSDoc en español documentado
+- [x] 7.5 Concurrencia: idempotency dentro de tx, ambos usuarios bloqueados
+- [x] 7.6 Swagger ejemplos agregados a todos los endpoints
+- [x] 7.7 Cambiado idempotencyKey a reference (más intuitivo)
+- [x] 7.8 Agregado balance al profile
+- [x] 7.9 Corregidos decoradores JWT-auth (transactions + admin)
 - [x] 7.4 JSDoc en español documentado
 - [x] 7.5 Concurrencia: idempotency dentro de tx, ambos usuarios bloqueados

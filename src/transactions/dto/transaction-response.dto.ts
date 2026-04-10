@@ -23,8 +23,8 @@ export class TransactionResponseDto {
   /** Estado de la transacción */
   status: TransactionStatus;
 
-  /** Clave de idempotencia */
-  idempotencyKey: string;
+  /** Referencia única de la transacción */
+  reference: string;
 
   /** Fecha de creación */
   createdAt: Date;

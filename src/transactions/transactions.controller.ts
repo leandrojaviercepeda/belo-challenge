@@ -13,7 +13,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiProperty,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -25,7 +25,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
  * Endpoints protegidos con JWT authentication.
  */
 @ApiTags('transactions')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
+@ApiSecurity('JWT-auth')
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
 export class TransactionsController {
@@ -34,16 +35,24 @@ export class TransactionsController {
   /**
    * Crea una nueva transacción entre el usuario autenticado y otro usuario.
    * POST /transactions
-   * @param req - Request con usuario desde JWT guard
-   * @param createTransactionDto - Datos de la transferencia
-   * @returns Transacción creada con estado COMPLETED
    */
   @Post()
   @ApiOperation({ summary: 'Crear una nueva transacción entre usuarios' })
   @ApiResponse({
     status: 201,
     description: 'Transacción creada exitosamente',
-    type: TransactionResponseDto,
+    schema: {
+      example: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        fromUserId: 'abc123def-456',
+        toUserId: 'def456abc-789',
+        amount: 100,
+        currency: 'USD',
+        status: 'COMPLETED',
+        reference: 'TXN-ABC123',
+        createdAt: '2026-04-10T12:00:00.000Z',
+      },
+    },
   })
   @ApiResponse({
     status: 400,
@@ -68,16 +77,24 @@ export class TransactionsController {
    * Obtiene una transacción por su ID.
    * GET /transactions/:id
    * Solo accesible por los participantes (sender o recipient).
-   * @param req - Request con usuario desde JWT guard
-   * @param id - ID de la transacción
-   * @returns Datos de la transacción
    */
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una transacción por su ID' })
   @ApiResponse({
     status: 200,
     description: 'Datos de la transacción',
-    type: TransactionResponseDto,
+    schema: {
+      example: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        fromUserId: 'abc123def-456',
+        toUserId: 'def456abc-789',
+        amount: 100,
+        currency: 'USD',
+        status: 'COMPLETED',
+        reference: 'TXN-ABC123',
+        createdAt: '2026-04-10T12:00:00.000Z',
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Transacción no encontrada' })
   @ApiResponse({

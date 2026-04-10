@@ -163,6 +163,7 @@ describe('AuthService', () => {
       expect(result).toEqual({
         id: mockUser.id,
         email: mockUser.email,
+        balance: mockUser.balance,
         createdAt: mockUser.createdAt,
         updatedAt: mockUser.updatedAt,
       });
