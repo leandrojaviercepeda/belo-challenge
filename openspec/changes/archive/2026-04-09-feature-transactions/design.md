@@ -1,5 +1,44 @@
 # Design: Transacciones entre usuarios
 
+## Requerimiento de Documentación JSDoc
+
+Todo el código del módulo transactions DEBE estar documentado con comentarios JSDoc en español. Esto es **requerimiento** para esta feature.
+
+### Archivos a documentar:
+
+| Archivo                      | Contenido a documentar                     |
+| ---------------------------- | ------------------------------------------ |
+| `transaction.entity.ts`      | Cada campo con su propósito y validaciones |
+| `transactions.service.ts`    | Métodos públicos con @param y @returns     |
+| `transactions.controller.ts` | Cada endpoint con descripción              |
+| `dto/*.ts`                   | Cada propiedad con su validación           |
+
+### Ejemplo de formato esperado:
+
+```typescript
+/**
+ * Entidad que representa una transacción monetaria entre dos usuarios.
+ * Almacena el estado de la transferencia y la clave de idempotencia.
+ */
+@Entity()
+export class Transaction {
+  /**
+   * ID único de la transacción (UUID).
+   * Se genera automáticamente al crear.
+   */
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  /**
+   * Cantidad a transferir.
+   * Debe ser mayor a 0 y tener hasta 2 decimales.
+   */
+  @Column('decimal', { precision: 20, scale: 2 })
+  @IsPositive()
+  amount: number;
+}
+```
+
 ## Enfoque Técnico
 
 Implementar un sistema de transferencias monetarias usando NestJS + TypeORM con PostgreSQL. Utilizar bloqueo a nivel de base de datos (SELECT FOR UPDATE), validación de clave de idempotencia y detección configurable de recurrencia para garantizar transferencias atómicas y seguras.

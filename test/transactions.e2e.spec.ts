@@ -128,15 +128,26 @@ describe('TransactionsController (e2e)', () => {
   });
 
   describe('Idempotency', () => {
-    it.skip('should return existing transaction for duplicate idempotencyKey - pending DTO fix', async () => {
-      // Skipped - requires IsUUID to accept non-UUID or remove validation
+    it('should return existing transaction for duplicate idempotencyKey', async () => {
       const idempotencyKey = crypto.randomUUID();
 
+      // First request - creates transaction
       await supertest(httpServer)
         .post('/transactions')
         .set('Authorization', `Bearer ${charlieToken}`)
         .send({ toUserId: aliceId, amount: 1, idempotencyKey })
         .expect(201);
+
+      // Second request with same idempotencyKey - should return existing (still 201 but same id)
+      const res = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${charlieToken}`)
+        .send({ toUserId: aliceId, amount: 1, idempotencyKey })
+        .expect(201);
+
+      // Should be the same transaction
+      expect(res.body.idempotencyKey).toBe(idempotencyKey);
+      expect(res.body.amount).toBe(1);
     });
   });
 

@@ -28,6 +28,34 @@ El sistema debe permitir transferencias entre cuentas con validación de saldo, 
 - Notificaciones push/email al usuario
 - Dashboard administrativo
 - Historial completo de transacciones (futura feature)
+- JSDoc de otros módulos (otro ticket)
+
+## Documentación JSDoc
+
+Se debe documentar TODO el código del módulo transactions con comentarios JSDoc en español:
+
+- **Entity**: Descripción de campos, relaciones y validaciones
+- **Service**: Métodos públicos con @param y @returns
+- **Controller**: Endpoints con descripción de cada operación
+- **DTOs**: Descripción de cada campo y validaciones
+
+Ejemplo de formato:
+
+```typescript
+/**
+ * Servicio para gestionar transacciones monetarias entre usuarios.
+ * Maneja la idempotencia, validación de saldo y bloqueo por recurrencia.
+ */
+@Service()
+export class TransactionsService {
+  /**
+   * Crea una nueva transacción entre dos usuarios.
+   * @param fromUserId - ID del usuario que envía
+   * @param createTransactionDto - Datos de la transacción
+   * @returns Transacción creada o error соответствующий
+   */
+  async create(...) { }
+}
 
 ## Capacidades
 
@@ -92,3 +120,4 @@ Para recurrencia: mantener un contador de transacciones recientes por usuario en
 - [x] Transferencia con saldo insuficiente retorna 400
 - [x] Múltiples transacciones en < 5 min bloqueadas (configurable)
 - [x] Tests unitarios y E2E pasando
+```

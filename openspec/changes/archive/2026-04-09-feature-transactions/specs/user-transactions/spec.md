@@ -1,5 +1,26 @@
 # Delta for user-transactions
 
+## JSDoc Documentation Requirement
+
+All code in this module MUST be documented with JSDoc comments in Spanish:
+
+- **Entity**: Descripción de campos, relaciones y validaciones
+- **Service**: Métodos públicos con `@param` y `@returns`
+- **Controller**: Descripción de cada endpoint
+- **DTOs**: Descripción de cada campo y validaciones
+
+Example:
+
+```typescript
+/**
+ * Crea una nueva transacción entre dos usuarios.
+ * @param fromUserId - ID del usuario que envía
+ * @param toUserId - ID del usuario que recibe
+ * @returns Transacción creada con estado COMPLETED o error
+ */
+async createTransaction(fromUserId: string, toUserId: string, amount: number): Promise<Transaction>
+```
+
 ## ADDED Requirements
 
 ### Requirement: Create Money Transfer

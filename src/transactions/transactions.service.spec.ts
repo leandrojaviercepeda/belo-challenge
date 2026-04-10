@@ -64,6 +64,7 @@ describe('TransactionsService', () => {
     release: jest.fn(),
     manager: {
       findOne: jest.fn(),
+      find: jest.fn(),
       save: jest.fn(),
     },
   };
@@ -104,10 +105,13 @@ describe('TransactionsService', () => {
   });
 
   const setupSuccessfulTransfer = () => {
-    mockTransactionRepository.findOne.mockResolvedValue(null);
-    mockQueryRunner.manager.findOne
-      .mockResolvedValueOnce(mockUserSender)
-      .mockResolvedValueOnce(mockUserRecipient);
+    // Verificación de idempotencia DENTRO de la transacción
+    mockQueryRunner.manager.findOne.mockResolvedValue(null);
+    // Ambos usuarios se bloquean simultáneamente con find + lock
+    mockQueryRunner.manager.find.mockResolvedValue([
+      mockUserSender,
+      mockUserRecipient,
+    ]);
     mockQueryRunner.manager.save
       .mockResolvedValueOnce({ ...mockUserSender, balance: 50 })
       .mockResolvedValueOnce({ ...mockUserRecipient, balance: 100 })
@@ -134,7 +138,8 @@ describe('TransactionsService', () => {
     });
 
     it('should return existing transaction for duplicate idempotencyKey', async () => {
-      mockTransactionRepository.findOne.mockResolvedValue(mockTransaction);
+      // Verificación de idempotencia DENTRO de la transacción
+      mockQueryRunner.manager.findOne.mockResolvedValue(mockTransaction);
 
       const result = await service.createTransaction('sender-id', {
         ...createDto,
@@ -144,14 +149,13 @@ describe('TransactionsService', () => {
       expect(result).toEqual(
         expect.objectContaining({ id: mockTransaction.id }),
       );
-      expect(mockTransactionRepository.create).not.toHaveBeenCalled();
+      expect(mockQueryRunner.manager.find).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if recipient does not exist', async () => {
-      mockTransactionRepository.findOne.mockResolvedValue(null);
-      mockQueryRunner.manager.findOne
-        .mockResolvedValueOnce(mockUserSender)
-        .mockResolvedValueOnce(null);
+      // Verificación de idempotencia DENTRO de la transacción
+      mockQueryRunner.manager.findOne.mockResolvedValue(null);
+      mockQueryRunner.manager.find.mockResolvedValue([mockUserSender]); // Solo el sender existe
 
       await expect(
         service.createTransaction('sender-id', createDto),
@@ -159,8 +163,9 @@ describe('TransactionsService', () => {
     });
 
     it('should throw BadRequestException when transferring to self', async () => {
-      mockTransactionRepository.findOne.mockResolvedValue(null);
-      mockQueryRunner.manager.findOne.mockResolvedValue(mockUserSender);
+      // Verificación de idempotencia DENTRO de la transacción
+      mockQueryRunner.manager.findOne.mockResolvedValue(null);
+      mockQueryRunner.manager.find.mockResolvedValue([mockUserSender]);
 
       await expect(
         service.createTransaction('sender-id', {
@@ -171,11 +176,13 @@ describe('TransactionsService', () => {
     });
 
     it('should throw BadRequestException when balance is insufficient', async () => {
-      mockTransactionRepository.findOne.mockResolvedValue(null);
+      // Verificación de idempotencia DENTRO de la transacción
+      mockQueryRunner.manager.findOne.mockResolvedValue(null);
       const insufficientSender = { ...mockUserSender, balance: 30 };
-      mockQueryRunner.manager.findOne
-        .mockResolvedValueOnce(insufficientSender)
-        .mockResolvedValueOnce(mockUserRecipient);
+      mockQueryRunner.manager.find.mockResolvedValue([
+        insufficientSender,
+        mockUserRecipient,
+      ]);
 
       await expect(
         service.createTransaction('sender-id', createDto),
@@ -236,10 +243,12 @@ describe('TransactionsService', () => {
         windowStart: new Date(),
       });
 
-      mockTransactionRepository.findOne.mockResolvedValue(null);
-      mockQueryRunner.manager.findOne
-        .mockResolvedValueOnce(mockUserSender)
-        .mockResolvedValueOnce(mockUserRecipient);
+      // Verificación de idempotencia DENTRO de la transacción
+      mockQueryRunner.manager.findOne.mockResolvedValue(null);
+      mockQueryRunner.manager.find.mockResolvedValue([
+        mockUserSender,
+        mockUserRecipient,
+      ]);
       mockQueryRunner.manager.save
         .mockResolvedValueOnce({})
         .mockResolvedValueOnce({})
@@ -256,7 +265,42 @@ describe('TransactionsService', () => {
         windowStart: new Date(),
       });
 
-      mockTransactionRepository.findOne.mockResolvedValue(null);
+      // No llega a la transacción porque el check de recurrencia falla primero
+      await expect(
+        service.createTransaction('sender-id', createDto),
+      ).rejects.toThrow(HttpException);
+    });
+
+    it('should allow transaction after window expires', async () => {
+      const expiredWindow = new Date(Date.now() - 6 * 60 * 1000);
+      (service as any).recurrenceCounter.set('sender-id', {
+        count: 3,
+        windowStart: expiredWindow,
+      });
+
+      // Verificación de idempotencia DENTRO de la transacción
+      mockQueryRunner.manager.findOne.mockResolvedValue(null);
+      mockQueryRunner.manager.find.mockResolvedValue([
+        { ...mockUserSender, balance: 100 },
+        mockUserRecipient,
+      ]);
+      mockQueryRunner.manager.save
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce(mockTransaction);
+
+      const result = await service.createTransaction('sender-id', createDto);
+
+      expect(result).toBeDefined();
+    });
+
+    it('should block transaction with 429 when threshold exceeded', async () => {
+      (service as any).recurrenceCounter.set('sender-id', {
+        count: 3,
+        windowStart: new Date(),
+      });
+
+      // No llega a la transacción porque el check de recurrencia falla primero
 
       await expect(
         service.createTransaction('sender-id', createDto),
@@ -271,9 +315,10 @@ describe('TransactionsService', () => {
       });
 
       mockTransactionRepository.findOne.mockResolvedValue(null);
-      mockQueryRunner.manager.findOne
-        .mockResolvedValueOnce({ ...mockUserSender, balance: 100 })
-        .mockResolvedValueOnce(mockUserRecipient);
+      mockQueryRunner.manager.find.mockResolvedValue([
+        { ...mockUserSender, balance: 100 },
+        mockUserRecipient,
+      ]);
       mockQueryRunner.manager.save
         .mockResolvedValueOnce({})
         .mockResolvedValueOnce({})
