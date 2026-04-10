@@ -4,7 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { AdminModule } from './admin/admin.module';
 import { User } from './users/user.entity';
+import { Transaction } from './transactions/transaction.entity';
 import { validate } from './config/env.validation';
 
 @Module({
@@ -24,7 +27,7 @@ import { validate } from './config/env.validation';
         username: configService.get<string>('DATABASE_USER'),
         password: configService.get<string>('DATABASE_PASSWORD'),
         database: configService.get<string>('DATABASE_NAME'),
-        entities: [User],
+        entities: [User, Transaction],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
         logging: configService.get<string>('NODE_ENV') === 'development',
       }),
@@ -32,6 +35,8 @@ import { validate } from './config/env.validation';
     HealthModule,
     UsersModule,
     AuthModule,
+    TransactionsModule,
+    AdminModule,
   ],
   controllers: [],
   providers: [],

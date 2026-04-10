@@ -9,3 +9,5 @@ process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.JWT_EXPIRES_IN = '15m';
 process.env.JWT_REFRESH_EXPIRES_IN = '7d';
 process.env.PORT = '3000';
+process.env.TRANSACTION_RECURRENCE_WINDOW_MINUTES = '5';
+process.env.TRANSACTION_RECURRENCE_THRESHOLD = '3';

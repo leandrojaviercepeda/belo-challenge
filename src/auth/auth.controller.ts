@@ -32,6 +32,17 @@ export class AuthController {
     status: 201,
     description: 'User created successfully',
     type: AuthResponseDto,
+    schema: {
+      example: {
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        user: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          email: 'user@example.com',
+          createdAt: '2026-04-10T12:00:00.000Z',
+        },
+      },
+    },
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 409, description: 'Conflict - email already exists' })
@@ -46,6 +57,17 @@ export class AuthController {
     status: 200,
     description: 'Login successful - returns tokens',
     type: AuthResponseDto,
+    schema: {
+      example: {
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        user: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          email: 'user@example.com',
+          createdAt: '2026-04-10T12:00:00.000Z',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 401,
@@ -60,7 +82,19 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @ApiSecurity('JWT-auth')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'User profile data' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile data',
+    schema: {
+      example: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        email: 'user@example.com',
+        balance: 1000,
+        createdAt: '2026-04-10T12:00:00.000Z',
+        updatedAt: '2026-04-10T12:00:00.000Z',
+      },
+    },
+  })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - invalid or missing token',

@@ -38,6 +38,12 @@ export class EnvironmentVariables {
   @IsString()
   JWT_REFRESH_EXPIRES_IN: string = '7d';
 
+  @IsNumber()
+  TRANSACTION_RECURRENCE_WINDOW_MINUTES: number = 5;
+
+  @IsNumber()
+  TRANSACTION_RECURRENCE_THRESHOLD: number = 3;
+
   // Add these to .env:
   // JWT_SECRET=your-secret-key
   // JWT_EXPIRES_IN=15m
