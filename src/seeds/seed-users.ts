@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { User } from '../users/user.entity';
+import { User, UserRole } from '../users/user.entity';
 
 const dataSource = new DataSource({
   type: 'postgres',
@@ -13,24 +13,34 @@ const dataSource = new DataSource({
 
 const users = [
   {
+    email: 'admin@belo.com',
+    password: 'password123',
+    balance: 10000.0,
+    role: UserRole.ADMIN,
+  },
+  {
     email: 'alice@belo.com',
     password: 'password123',
     balance: 1000.0,
+    role: UserRole.USER,
   },
   {
     email: 'bob@belo.com',
     password: 'password123',
     balance: 500.0,
+    role: UserRole.USER,
   },
   {
     email: 'charlie@belo.com',
     password: 'password123',
     balance: 750.0,
+    role: UserRole.USER,
   },
   {
     email: 'david@belo.com',
     password: 'password123',
     balance: 250.0,
+    role: UserRole.USER,
   },
 ];
 
@@ -53,7 +63,7 @@ async function seedUsers() {
     const user = userRepository.create(userData);
     await userRepository.save(user);
     console.log(
-      `Created user: ${userData.email} with balance: $${userData.balance}`,
+      `Created user: ${userData.email} with role: ${userData.role} and balance: $${userData.balance}`,
     );
   }
 

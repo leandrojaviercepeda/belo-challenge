@@ -8,11 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { AuthRegisterDto } from './dto/auth-register.dto';
 import { AuthLoginDto } from './dto/auth-login.dto';
-import { User } from '../users/user.entity';
+import { User, UserRole } from '../users/user.entity';
 
 export interface JwtPayload {
   sub: string;
   email: string;
+  role: UserRole;
 }
 
 @Injectable()
@@ -67,6 +68,7 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
+      role: user.role,
       balance: user.balance,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -77,6 +79,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      role: user.role || UserRole.USER,
     };
 
     const accessToken = this.jwtService.sign(payload, {
