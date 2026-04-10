@@ -16,25 +16,66 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/user.entity';
 import { SetBalanceDto } from './dto/set-balance.dto';
 
 /**
  * Controlador para administración de usuarios.
- * Endpoints protegidos con JWT.
+ * Endpoints protegidos con JWT y Roles.
  */
 @ApiTags('admin')
 @ApiBearerAuth('JWT-auth')
 @ApiSecurity('JWT-auth')
 @Controller('admin')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
   constructor(private readonly usersService: UsersService) {}
+
+  /**
+   * Lista todos los usuarios.
+   * GET /admin/users
+   */
+  @Get('users')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Listar todos los usuarios' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuarios',
+    schema: {
+      example: [
+        {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          email: 'admin@belo.com',
+          role: 'admin',
+          balance: 10000,
+        },
+        {
+          id: '123e4567-e89b-12d3-a456-426614174001',
+          email: 'alice@belo.com',
+          role: 'user',
+          balance: 1000,
+        },
+      ],
+    },
+  })
+  async getUsers() {
+    const users = await this.usersService.findAll();
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      balance: user.balance,
+    }));
+  }
 
   /**
    * Consulta el balance de un usuario.
    * GET /admin/users/:id/balance
    */
   @Get('users/:id/balance')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Consultar balance de un usuario' })
   @ApiResponse({
     status: 200,
@@ -61,6 +102,7 @@ export class AdminController {
    * PUT /admin/users/:id/balance
    */
   @Put('users/:id/balance')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Actualizar balance de un usuario' })
   @ApiResponse({
     status: 200,

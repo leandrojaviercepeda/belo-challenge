@@ -8,6 +8,11 @@ import {
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -21,6 +26,13 @@ export class User {
 
   @Column({ type: 'decimal', precision: 20, scale: 2, default: 0 })
   balance: number;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: UserRole.USER,
+  })
+  role: UserRole;
 
   @CreateDateColumn()
   createdAt: Date;

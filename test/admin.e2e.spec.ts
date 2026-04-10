@@ -3,7 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import supertest from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DataSource } from 'typeorm';
-import { User } from '../src/users/user.entity';
+import { User, UserRole } from '../src/users/user.entity';
 
 describe('AdminController (e2e)', () => {
   let app: INestApplication;
@@ -44,15 +44,18 @@ describe('AdminController (e2e)', () => {
     adminToken = adminRes.body.accessToken;
     adminUserId = adminRes.body.user.id;
 
+    // Assign admin role to admin user
+    await dataSource.getRepository(User).update(adminUserId, {
+      role: UserRole.ADMIN,
+      balance: 5000,
+    });
+
     // Create normal user
     const userRes = await supertest(httpServer)
       .post('/auth/register')
       .send({ email: userEmail, password });
     normalToken = userRes.body.accessToken;
     normalUserId = userRes.body.user.id;
-
-    // Set initial balance for admin
-    await dataSource.getRepository(User).update(adminUserId, { balance: 5000 });
   });
 
   afterAll(async () => {
@@ -60,7 +63,7 @@ describe('AdminController (e2e)', () => {
   });
 
   describe('GET /admin/users/:id/balance', () => {
-    it('should return user balance for admin', async () => {
+    it('should return 200 for admin user', async () => {
       const res = await supertest(httpServer)
         .get(`/admin/users/${normalUserId}/balance`)
         .set('Authorization', `Bearer ${adminToken}`)
@@ -68,6 +71,13 @@ describe('AdminController (e2e)', () => {
 
       expect(res.body).toHaveProperty('balance');
       expect(res.body).toHaveProperty('email');
+    });
+
+    it('should return 403 for regular user', async () => {
+      return supertest(httpServer)
+        .get(`/admin/users/${normalUserId}/balance`)
+        .set('Authorization', `Bearer ${normalToken}`)
+        .expect(403);
     });
 
     it('should return 401 without token', () => {
@@ -78,7 +88,7 @@ describe('AdminController (e2e)', () => {
   });
 
   describe('PUT /admin/users/:id/balance', () => {
-    it('should update user balance for admin', async () => {
+    it('should return 200 for admin user', async () => {
       const res = await supertest(httpServer)
         .put(`/admin/users/${normalUserId}/balance`)
         .set('Authorization', `Bearer ${adminToken}`)
@@ -86,6 +96,14 @@ describe('AdminController (e2e)', () => {
         .expect(200);
 
       expect(res.body.balance).toBe(3000);
+    });
+
+    it('should return 403 for regular user', async () => {
+      return supertest(httpServer)
+        .put(`/admin/users/${normalUserId}/balance`)
+        .set('Authorization', `Bearer ${normalToken}`)
+        .send({ amount: 1000 })
+        .expect(403);
     });
 
     it('should return 401 without token', () => {
