@@ -21,11 +21,20 @@ import { AuthLoginDto } from './dto/auth-login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
+/**
+ * Controlador de autenticación.
+ * Endpoints para registro, login y perfil de usuario.
+ */
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  /**
+   * Registra un nuevo usuario.
+   * @param authRegisterDto - Datos de registro (email, password)
+   * @returns Token de acceso y datos del usuario creado
+   */
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({
@@ -50,6 +59,11 @@ export class AuthController {
     return this.authService.register(authRegisterDto);
   }
 
+  /**
+   * Autentica un usuario existente.
+   * @param authLoginDto - Credenciales (email, password)
+   * @returns Tokens de acceso si las credenciales son válidas
+   */
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
@@ -77,6 +91,10 @@ export class AuthController {
     return this.authService.login(authLoginDto);
   }
 
+  /**
+   * Obtiene el perfil del usuario autenticado.
+   * @returns Datos del perfil del usuario
+   */
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

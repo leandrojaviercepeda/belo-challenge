@@ -1,5 +1,9 @@
 import { HttpStatus } from '@nestjs/common';
 
+/**
+ * Diccionario de errores predefinidos.
+ * Define errores comunes de la aplicación con su código, mensaje y estado HTTP.
+ */
 export const ERROR_DICTIONARY = {
   INTERNAL_SERVER_ERROR: {
     code: 'INTERNAL_SERVER_ERROR',

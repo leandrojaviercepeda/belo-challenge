@@ -1,5 +1,9 @@
 import { DataSourceOptions } from 'typeorm';
 
+/**
+ * Configuración de la fuente de datos TypeORM.
+ * Define las opciones de conexión a PostgreSQL.
+ */
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   host: process.env.DATABASE_HOST || 'localhost',

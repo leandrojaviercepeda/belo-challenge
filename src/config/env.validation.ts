@@ -1,12 +1,19 @@
 import { plainToInstance } from 'class-transformer';
 import { IsEnum, IsNumber, IsString, validateSync } from 'class-validator';
 
+/**
+ * Enum de entornos de aplicación.
+ */
 enum Environment {
   Development = 'development',
   Staging = 'staging',
   Production = 'production',
 }
 
+/**
+ * Clase de validación de variables de entorno.
+ * Define los tipos y validadores para cada variable de entorno.
+ */
 export class EnvironmentVariables {
   @IsEnum(Environment)
   NODE_ENV: Environment = Environment.Development;
@@ -50,6 +57,12 @@ export class EnvironmentVariables {
   // JWT_REFRESH_EXPIRES_IN=7d
 }
 
+/**
+ * Valida las variables de entorno.
+ * @param config - Objeto con las variables de entorno
+ * @returns Variables de entorno validadas
+ * @throws Error si la validación falla
+ */
 export function validate(config: Record<string, unknown>) {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
