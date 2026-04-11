@@ -3,7 +3,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import supertest from 'supertest';
 import { AppModule } from '../src/app.module';
 import { DataSource } from 'typeorm';
-import { User } from '../src/users/user.entity';
+import { User, UserRole } from '../src/users/user.entity';
+import { TransactionStatus } from '../src/transactions/transaction-status.enum';
 
 describe('TransactionsController (e2e)', () => {
   let app: INestApplication;
@@ -219,6 +220,290 @@ describe('TransactionsController (e2e)', () => {
         .get('/transactions/00000000-0000-0000-0000-000000000001')
         .set('Authorization', `Bearer ${aliceToken}`)
         .expect(404);
+    });
+  });
+
+  describe('POST /transactions - Amount threshold', () => {
+    it('should create transaction with PENDING status for amount > $50000', async () => {
+      // Create a new user for this test to avoid recurrence block
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `newuser1-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 300000 });
+
+      const res = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: bobId, amount: 60000 })
+        .expect(201);
+
+      expect(res.body.status).toBe(TransactionStatus.PENDING);
+      // Verify balances were NOT changed (still pending)
+      const newUser = await dataSource
+        .getRepository(User)
+        .findOne({ where: { id: newUserId } });
+      expect(newUser).not.toBeNull();
+      expect(Number(newUser!.balance)).toBe(300000);
+    });
+
+    it('should create transaction with COMPLETED status for amount ≤ $50000', async () => {
+      // Create a new user for this test to avoid recurrence block
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `newuser2-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 100000 });
+
+      const res = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: charlieId, amount: 50000 })
+        .expect(201);
+
+      expect(res.body.status).toBe(TransactionStatus.COMPLETED);
+    });
+  });
+
+  describe('GET /transactions (list)', () => {
+    let aliceTokenAdmin: string;
+
+    beforeAll(async () => {
+      // Create admin user for approve/reject tests
+      const adminRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({
+          email: `admin${Date.now()}@belo.com`,
+          password,
+          role: UserRole.ADMIN,
+        });
+      aliceTokenAdmin = adminRes.body.accessToken;
+    });
+
+    it('should list transactions for a user', async () => {
+      const res = await supertest(httpServer)
+        .get(`/transactions?userId=${aliceId}`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty('data');
+      expect(res.body).toHaveProperty('meta');
+      expect(res.body.meta).toHaveProperty('total');
+      expect(res.body.meta).toHaveProperty('page');
+      expect(res.body.meta).toHaveProperty('limit');
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('should require authentication', async () => {
+      return supertest(httpServer)
+        .get(`/transactions?userId=${aliceId}`)
+        .expect(401);
+    });
+  });
+
+  describe('PATCH /transactions/:id/approve', () => {
+    it('should approve a pending transaction as admin', async () => {
+      // Create a new user for this test to avoid recurrence block
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `approve-user-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 200000 });
+
+      // Create pending transaction
+      const txRes = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: bobId, amount: 60000 });
+      const pendingId = txRes.body.id;
+
+      // Create admin token
+      const adminRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({
+          email: `admin-approve-${Date.now()}@belo.com`,
+          password,
+          role: UserRole.ADMIN,
+        });
+      const adminToken = adminRes.body.accessToken;
+
+      const res = await supertest(httpServer)
+        .patch(`/transactions/${pendingId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.status).toBe(TransactionStatus.COMPLETED);
+    });
+
+    it('should return 403 for non-admin', async () => {
+      // Create a new pending transaction
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `nonadmin-user-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 100000 });
+
+      const txRes = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: bobId, amount: 60001 });
+      const pendingId = txRes.body.id;
+
+      return supertest(httpServer)
+        .patch(`/transactions/${pendingId}/approve`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .expect(403);
+    });
+
+    it('should return 400 for non-pending transaction', async () => {
+      // Create a small transaction (completed)
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `complete-user-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 100000 });
+
+      const txRes = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: charlieId, amount: 100 });
+      const completedId = txRes.body.id;
+
+      const adminRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({
+          email: `admin-approve2-${Date.now()}@belo.com`,
+          password,
+          role: UserRole.ADMIN,
+        });
+      const adminToken = adminRes.body.accessToken;
+
+      return supertest(httpServer)
+        .patch(`/transactions/${completedId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
+    });
+  });
+
+  describe('PATCH /transactions/:id/reject', () => {
+    it('should reject a pending transaction as admin', async () => {
+      // Create a new user for this test to avoid recurrence block
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `reject-user-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 200000 });
+
+      // Create pending transaction
+      const txRes = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: bobId, amount: 70000 });
+      const pendingId = txRes.body.id;
+
+      const adminRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({
+          email: `admin-reject-${Date.now()}@belo.com`,
+          password,
+          role: UserRole.ADMIN,
+        });
+      const adminToken = adminRes.body.accessToken;
+
+      const res = await supertest(httpServer)
+        .patch(`/transactions/${pendingId}/reject`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.status).toBe(TransactionStatus.REJECTED);
+
+      // Verify balances were NOT changed
+      const newUser = await dataSource
+        .getRepository(User)
+        .findOne({ where: { id: newUserId } });
+      expect(newUser).not.toBeNull();
+      expect(Number(newUser!.balance)).toBe(200000);
+    });
+
+    it('should return 403 for non-admin', async () => {
+      // Create a new pending transaction
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `reject-nonadmin-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 100000 });
+
+      const txRes = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: bobId, amount: 70001 });
+      const pendingId = txRes.body.id;
+
+      return supertest(httpServer)
+        .patch(`/transactions/${pendingId}/reject`)
+        .set('Authorization', `Bearer ${aliceToken}`)
+        .expect(403);
+    });
+
+    it('should return 400 for non-pending transaction', async () => {
+      // Create a small transaction (completed)
+      const newUserRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({ email: `complete-reject-${Date.now()}@belo.com`, password });
+      const newUserToken = newUserRes.body.accessToken;
+      const newUserId = newUserRes.body.user.id;
+
+      await dataSource
+        .getRepository(User)
+        .update(newUserId, { balance: 100000 });
+
+      const txRes = await supertest(httpServer)
+        .post('/transactions')
+        .set('Authorization', `Bearer ${newUserToken}`)
+        .send({ toUserId: charlieId, amount: 50 });
+      const completedId = txRes.body.id;
+
+      const adminRes = await supertest(httpServer)
+        .post('/auth/register')
+        .send({
+          email: `admin-reject2-${Date.now()}@belo.com`,
+          password,
+          role: UserRole.ADMIN,
+        });
+      const adminToken = adminRes.body.accessToken;
+
+      return supertest(httpServer)
+        .patch(`/transactions/${completedId}/reject`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(400);
     });
   });
 });

@@ -46,10 +46,10 @@ export class Transaction {
   amount: number;
 
   /**
-   * Código de moneda (default: USD).
-   * Por ahora solo se soporta USD.
+   * Código de moneda (default: ARS).
+   * Por ahora solo se soporta ARS (Pesos Argentinos).
    */
-  @Column({ default: 'USD' })
+  @Column({ default: 'ARS' })
   currency: string;
 
   /**

@@ -43,7 +43,7 @@ describe('TransactionsService', () => {
     fromUserId: 'sender-id',
     toUserId: 'recipient-id',
     amount: 50,
-    currency: 'USD',
+    currency: 'ARS',
     status: TransactionStatus.COMPLETED,
     idempotencyKey: 'test-key',
     createdAt: new Date(),
@@ -122,7 +122,7 @@ describe('TransactionsService', () => {
     const createDto = {
       toUserId: 'recipient-id',
       amount: 50,
-      currency: 'USD',
+      currency: 'ARS',
     };
 
     it('should create a successful transfer', async () => {
@@ -234,7 +234,7 @@ describe('TransactionsService', () => {
     const createDto = {
       toUserId: 'recipient-id',
       amount: 50,
-      currency: 'USD',
+      currency: 'ARS',
     };
 
     it('should allow transaction when below threshold', async () => {

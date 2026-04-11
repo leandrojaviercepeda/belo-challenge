@@ -54,7 +54,7 @@ Tabla de transacciones monetarias entre usuarios.
 | from_user_id | UUID          | FK → users.id              | Usuario que envía dinero         |
 | to_user_id   | UUID          | FK → users.id              | Usuario que recibe dinero        |
 | amount       | DECIMAL(20,2) | NOT NULL                   | Cantidad a transferir            |
-| currency     | VARCHAR       | DEFAULT 'USD'              | Código de moneda                 |
+| currency     | VARCHAR       | DEFAULT 'ARS'              | Código de moneda                 |
 | status       | ENUM          | PENDING\|COMPLETED\|FAILED | Estado de la transacción         |
 | reference    | VARCHAR       | UNIQUE                     | Referencia única anti-duplicados |
 | created_at   | TIMESTAMP     | AUTO                       | Fecha de creación                |
