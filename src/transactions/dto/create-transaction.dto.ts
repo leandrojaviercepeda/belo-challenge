@@ -51,14 +51,14 @@ export class CreateTransactionDto {
   amount: number;
 
   /**
-   * Código de moneda (opcional, default: USD).
-   * Por ahora solo se soporta USD.
+   * Código de moneda (opcional, default: ARS - Pesos Argentinos).
+   * Por ahora solo se soporta ARS.
    */
   @ApiPropertyOptional({
-    description: 'Código de moneda (default: USD)',
-    example: 'USD',
+    description: 'Código de moneda (default: ARS)',
+    example: 'ARS',
   })
   @IsOptional()
   @IsString()
-  currency?: string = 'USD';
+  currency?: string = 'ARS';
 }

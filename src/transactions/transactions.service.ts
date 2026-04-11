@@ -51,22 +51,27 @@ export class TransactionsService {
    * Valida idempotencia, saldo suficiente, y bloqueo por recurrencia.
    * BLOQUEA AMBOS USUARIOS (sender y recipient) con pessimistic_write
    * para evitar inconsistencias por transacciones concurrentes.
-   * La verificación de idempotencia está DENTRO de la transacción para evitar duplicados.
+   *
+   * Reglas de negocio:
+   * - Si monto > $50000 → estado = PENDING (sin débito/crédito)
+   * - Si monto ≤ $50000 → estado = COMPLETED (con débito/crédito)
+   * - Si falla → estado = FAILED
+   *
    * @param fromUserId - ID del usuario que envía dinero
    * @param dto - Datos de la transacción (toUserId, amount, etc.)
    * @returns Transacción creada o existente (si reference ya existía)
-   * @throws NotFoundException - Si el usuario destinario no existe
-   * @throws BadRequestException - Si saldo insuficiente o transferencia a sí mismo
-   * @throws HttpException(429) - Si excede threshold de recurrencia
    */
   async createTransaction(
     fromUserId: string,
     dto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
+    const AMOUNT_THRESHOLD = 50000;
+    const isLargeAmount = dto.amount > AMOUNT_THRESHOLD;
+
     // Usar reference del DTO o generar una única
     const reference = dto.reference || crypto.randomUUID();
 
-    // 1. Check recurrence fuera de la transacción (no necesita Blochqueo)
+    // 1. Check recurrence fuera de la transacción (no necesita bloqueo)
     this.checkRecurrenceBlock(fromUserId);
 
     // 2. Iniciar transacción atómica con bloqueo
@@ -111,37 +116,71 @@ export class TransactionsService {
         throw new NotFoundException('Recipient user not found');
       }
 
-      if (sender.balance < dto.amount) {
-        throw new BadRequestException('Insufficient balance');
+      // 2.3 Determinar estado según monto
+      let transactionStatus: TransactionStatus;
+
+      if (isLargeAmount) {
+        // Monto > $50000: queda pendiente, NO se debita/credita aún
+        transactionStatus = TransactionStatus.PENDING;
+      } else {
+        // Monto ≤ $50000: validar saldo y procesar inmediatamente
+        if (sender.balance < dto.amount) {
+          throw new BadRequestException('Insufficient balance');
+        }
+
+        // Deduct from sender
+        sender.balance = Number(sender.balance) - dto.amount;
+        await queryRunner.manager.save(sender);
+
+        // Add to recipient
+        recipient.balance = Number(recipient.balance) + dto.amount;
+        await queryRunner.manager.save(recipient);
+
+        transactionStatus = TransactionStatus.COMPLETED;
       }
 
-      // Deduct from sender
-      sender.balance = Number(sender.balance) - dto.amount;
-      await queryRunner.manager.save(sender);
-
-      // Add to recipient
-      recipient.balance = Number(recipient.balance) + dto.amount;
-      await queryRunner.manager.save(recipient);
-
-      // Create transaction record
+      // 2.4 Create transaction record
       const transaction = this.transactionRepository.create({
         fromUserId: sender.id,
         toUserId: recipient.id,
         amount: dto.amount,
-        currency: dto.currency || 'USD',
-        status: TransactionStatus.COMPLETED,
+        currency: dto.currency || 'ARS',
+        status: transactionStatus,
         reference,
       });
 
       const savedTransaction = await queryRunner.manager.save(transaction);
       await queryRunner.commitTransaction();
 
-      // Update recurrence counter
+      // Update recurrence counter solo si fue exitosa
       this.incrementRecurrenceCounter(fromUserId);
 
       return this.toResponseDto(savedTransaction);
     } catch (error) {
       await queryRunner.rollbackTransaction();
+
+      // Si el error no es de validación (4xx), crear registro FAILED
+      // Esto solo aplica para transacciones pequeñas que fallaron en el proceso
+      if (!isLargeAmount && error instanceof HttpException) {
+        throw error;
+      }
+
+      // Crear registro de transacción fallida si es posible
+      // (Esto es para casos raros donde falla el procesamiento de transacciones pequeñas)
+      try {
+        const failedTransaction = this.transactionRepository.create({
+          fromUserId,
+          toUserId: dto.toUserId,
+          amount: dto.amount,
+          currency: dto.currency || 'ARS',
+          status: TransactionStatus.FAILED,
+          reference,
+        });
+        await this.transactionRepository.save(failedTransaction);
+      } catch (_) {
+        // Si no se puede crear, ignorar - el error original es más importante
+      }
+
       throw error;
     } finally {
       await queryRunner.release();
@@ -176,6 +215,125 @@ export class TransactionsService {
     }
 
     return this.toResponseDto(transaction);
+  }
+
+  /**
+   * Lista las transacciones de un usuario (como origen o destino).
+   * @param userId - ID del usuario
+   * @param page - Número de página
+   * @param limit - Resultados por página
+   * @returns Lista paginada de transacciones
+   */
+  async findByUserId(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<{
+    data: TransactionResponseDto[];
+    meta: { total: number; page: number; limit: number };
+  }> {
+    const [transactions, total] = await this.transactionRepository.findAndCount(
+      {
+        where: [{ fromUserId: userId }, { toUserId: userId }],
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * limit,
+        take: limit,
+      },
+    );
+
+    return {
+      data: transactions.map((t) => this.toResponseDto(t)),
+      meta: { total, page, limit },
+    };
+  }
+
+  /**
+   * Aprueba una transacción pendiente y realiza el movimiento de fondos.
+   * Solo admins pueden ejecutar esta acción.
+   * @param id - ID de la transacción
+   * @returns Transacción actualizada
+   * @throws NotFoundException - Si la transacción no existe
+   * @throws BadRequestException - Si la transacción no está pendiente
+   */
+  async approve(id: string): Promise<TransactionResponseDto> {
+    return this.dataSource.transaction(async (manager) => {
+      // 1. Obtener transacción con lock
+      const transaction = await manager.findOne(Transaction, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!transaction) {
+        throw new NotFoundException('Transaction not found');
+      }
+
+      if (transaction.status !== TransactionStatus.PENDING) {
+        throw new BadRequestException('Transaction is not pending');
+      }
+
+      // 2. Obtener usuarios con lock
+      const [fromUser, toUser] = await Promise.all([
+        manager.findOne(User, {
+          where: { id: transaction.fromUserId },
+          lock: { mode: 'pessimistic_write' },
+        }),
+        manager.findOne(User, {
+          where: { id: transaction.toUserId },
+          lock: { mode: 'pessimistic_write' },
+        }),
+      ]);
+
+      if (!fromUser || !toUser) {
+        throw new NotFoundException('User not found');
+      }
+
+      // 3. Validar saldo suficiente
+      const fromUserBalance = Number(fromUser.balance);
+      if (fromUserBalance < transaction.amount) {
+        throw new BadRequestException('Insufficient balance');
+      }
+
+      // 4. Débito y crédito atómico
+      fromUser.balance = fromUserBalance - transaction.amount;
+      toUser.balance = Number(toUser.balance) + transaction.amount;
+
+      await manager.save(fromUser);
+      await manager.save(toUser);
+
+      // 5. Actualizar estado transacción
+      transaction.status = TransactionStatus.COMPLETED;
+      const savedTransaction = await manager.save(transaction);
+
+      return this.toResponseDto(savedTransaction);
+    });
+  }
+
+  /**
+   * Rechaza una transacción pendiente.
+   * No modifica los saldos de los usuarios.
+   * Solo admins pueden ejecutar esta acción.
+   * @param id - ID de la transacción
+   * @returns Transacción actualizada
+   * @throws NotFoundException - Si la transacción no existe
+   * @throws BadRequestException - Si la transacción no está pendiente
+   */
+  async reject(id: string): Promise<TransactionResponseDto> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    if (transaction.status !== TransactionStatus.PENDING) {
+      throw new BadRequestException('Transaction is not pending');
+    }
+
+    transaction.status = TransactionStatus.REJECTED;
+    const savedTransaction = await this.transactionRepository.save(transaction);
+
+    return this.toResponseDto(savedTransaction);
   }
 
   /**

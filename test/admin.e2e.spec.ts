@@ -40,15 +40,12 @@ describe('AdminController (e2e)', () => {
     // Create admin user
     const adminRes = await supertest(httpServer)
       .post('/auth/register')
-      .send({ email: adminEmail, password });
+      .send({ email: adminEmail, password, role: UserRole.ADMIN });
     adminToken = adminRes.body.accessToken;
     adminUserId = adminRes.body.user.id;
 
-    // Assign admin role to admin user
-    await dataSource.getRepository(User).update(adminUserId, {
-      role: UserRole.ADMIN,
-      balance: 5000,
-    });
+    // Set admin balance
+    await dataSource.getRepository(User).update(adminUserId, { balance: 5000 });
 
     // Create normal user
     const userRes = await supertest(httpServer)
