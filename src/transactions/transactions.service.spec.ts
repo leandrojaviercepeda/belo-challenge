@@ -25,7 +25,7 @@ describe('TransactionsService', () => {
     updatedAt: new Date(),
     validatePassword: jest.fn(),
     hashPassword: jest.fn(),
-  } as User;
+  } as unknown as User;
 
   const mockUserRecipient: User = {
     id: 'recipient-id',
@@ -36,7 +36,7 @@ describe('TransactionsService', () => {
     updatedAt: new Date(),
     validatePassword: jest.fn(),
     hashPassword: jest.fn(),
-  } as User;
+  } as unknown as User;
 
   const mockTransaction: Transaction = {
     id: 'transaction-id',
@@ -48,7 +48,7 @@ describe('TransactionsService', () => {
     idempotencyKey: 'test-key',
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as Transaction;
+  } as unknown as Transaction;
 
   const mockTransactionRepository = {
     findOne: jest.fn(),
@@ -144,7 +144,7 @@ describe('TransactionsService', () => {
       const result = await service.createTransaction('sender-id', {
         ...createDto,
         idempotencyKey: 'test-key',
-      });
+      } as any);
 
       expect(result).toEqual(
         expect.objectContaining({ id: mockTransaction.id }),
